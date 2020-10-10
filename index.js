@@ -27,30 +27,57 @@ const app = express();
 //     }
 // }
 
-//flat-cache
-const flatCache = require('flat-cache');
+// //flat-cache
+// const flatCache = require('flat-cache');
 
-// load new cache
-let cache = flatCache.load('productsCache');
+// // load new cache
+// let cache = flatCache.load('productsCache');
 
-//flat-cache middleware
-let flatCacheMiddleware = (req,res,next) => {
-    let key = '__express__' + req.originalUrl || req.originalUrl
-    let cacheContent = cache.getKey(key);
-    if(cacheContent){
-        res.send( cacheContent );
-    } else{
-        res.sendResponse = res.send
-        res.send = (body) => {
-            cache.setKey(key, body);
-            cache.save();
-            res.sendResponse(body)
-        }
-        next()
+// //flat-cache middleware
+// let flatCacheMiddleware = (req,res,next) => {
+//     let key = '__express__' + req.originalUrl || req.originalUrl
+//     let cacheContent = cache.getKey(key);
+//     if(cacheContent){
+//         res.send( cacheContent );
+//     } else{
+//         res.sendResponse = res.send
+//         res.send = (body) => {
+//             cache.setKey(key, body);
+//             cache.save();
+//             res.sendResponse(body)
+//         }
+//         next()
+//     }
+// }
+
+// Memcached
+const Memcached = require('memcached');
+
+let memcached = new Memcached("127.0.0.1:11211")
+
+    let memcachedMiddleware = (duration) => {
+        return  (req,res,next) => {
+        let key = "__express__" + req.originalUrl || req.url;
+        memcached.get(key, function(err,data){
+            if(data){
+                res.send(data);
+                return;
+            }else{
+                res.sendResponse = res.send;
+                res.send = (body) => {
+                    memcached.set(key, body, (duration*60), function(err){
+                        // 
+                    });
+                    res.sendResponse(body);
+                }
+                next();
+            }
+        });
     }
-}
+    };
 
-app.get('/products', flatCacheMiddleware, function(req, res){
+
+app.get('/products', memcachedMiddleware(20), function(req, res){
     setTimeout(() => {
       let db = new sqlite3.Database('./NodeInventory.db');
       let sql = `SELECT * FROM products`;
