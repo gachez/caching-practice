@@ -20,3 +20,7 @@ app.get('/products',  function(req, res){
       // request
     }, 3000);
 });
+
+app.listen(PORT, function(){
+    console.log(`App running on port ${PORT}`);
+});
